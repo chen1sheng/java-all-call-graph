@@ -19,7 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
+    defaults:
+      run:
+        working-directory: ./java-all-call-graph
     steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 8
@@ -53,7 +55,7 @@ jobs:
     permissions:
       contents: write
 
-    steps:
+steps:
     - uses: actions/checkout@v4
     - name: Set up JDK 8
       uses: actions/setup-java@v4
@@ -61,7 +63,22 @@ jobs:
         java-version: '8'
         distribution: 'temurin'
 
-    # Generates and submits a dependency graph, enabling Dependabot Alerts for all project dependencies.
-    # See: https://github.com/gradle/actions/blob/main/dependency-submission/README.md
-    - name: Generate and submit dependency graph
-      uses: gradle/actions/dependency-submission@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@af1da67850ed9a4cedd57bfd976089dd991e2582 # v4.0.0
+
+    # 【新增】确保 gradlew 在 Linux 容器中有执行权限
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+
+    - name: Build with Gradle Wrapper
+      run: ./gradlew build -x test # 如果你的单元测试在云端容易连不上数据库导致构建失败，建议加上 -x test 跳过测试
+
+    # 【新增】把打好的 jar 包作为 Artifact 提取出来供下载
+    - name: Upload Build Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: java-all-call-graph.jar # 这里填你想要的压缩包名字
+        # 这里写你实际打出来的包的路径，Spring Boot 通常在 build/libs/ 下
+        path: java-all-call-graph/build/libs/*.jar 
+        # 如果你只想保留几天，可以设置过期时间，默认是 90 天
+        retention-days: 7
